@@ -4,218 +4,134 @@ const puppeteer = require("puppeteer");
 const htmlDocx = require("html-docx-js");
 
 
-// HTML template function
 function generateSkillEvaluationHTML(candidateData) {
   const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contractor Connect Skill Evaluation Sheet</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        .header {
-            text-align: center;
-            background-color: #2c3e50;
-            color: white;
-            padding: 15px;
-            margin: -20px -20px 20px -20px;
-            border-radius: 8px 8px 0 0;
-        }
-        .candidate-info {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 30px;
-            background-color: #ecf0f1;
-            padding: 20px;
-            border-radius: 5px;
-        }
-        .info-item {
-            display: flex;
-            align-items: center;
-        }
-        .info-label {
-            font-weight: bold;
-            min-width: 150px;
-            color: #2c3e50;
-        }
-        .info-value {
-            color: #34495e;
-            margin-left: 10px;
-        }
-        .skills-section {
-            margin-top: 30px;
-        }
-        .skills-header {
-            background-color: #3498db;
-            color: white;
-            padding: 10px;
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-        .skills-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .skills-table th {
-            background-color: #34495e;
-            color: white;
-            padding: 12px 8px;
-            text-align: center;
-            font-weight: bold;
-            border: 1px solid #2c3e50;
-            font-size: 14px;
-        }
-        .skills-table td {
-            padding: 10px 8px;
-            border: 1px solid #bdc3c7;
-            vertical-align: top;
-            font-size: 13px;
-        }
-        .skills-table tr:nth-child(even) {
-            background-color: #f8f9fa;
-        }
-        .skills-table tr:hover {
-            background-color: #e8f4fd;
-        }
-        .skill-name {
-            font-weight: bold;
-            color: #2c3e50;
-            max-width: 200px;
-            word-wrap: break-word;
-        }
-        .mandatory {
-            background-color: #e74c3c;
-            color: white;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 11px;
-            font-weight: bold;
-        }
-        .optional {
-            background-color: #f39c12;
-            color: white;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 11px;
-            font-weight: bold;
-        }
-        .projects-cell {
-            max-width: 250px;
-            word-wrap: break-word;
-            line-height: 1.4;
-        }
-        .years-cell {
-            text-align: center;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-        .description-cell {
-            max-width: 300px;
-            word-wrap: break-word;
-            line-height: 1.4;
-            color: #34495e;
-        }
-        .not-available {
-            color: #7f8c8d;
-            font-style: italic;
-        }
-        @media print {
-            body { margin: 0; background-color: white; }
-            .container { box-shadow: none; }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contractor Connect Skill Evaluation Sheet</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background-color: white;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #000;
+      padding: 8px 10px;
+      text-align: left;
+    }
+    .main-header {
+      background-color: #92d050;
+      font-weight: bold;
+      font-size: 18px;
+      text-align: center;
+      color: #000;
+    }
+    .section-label {
+      width: 25%;
+      background-color: #f9f9f9;
+      font-weight: bold;
+    }
+    .msp-header {
+      background-color: #e2f0d9;
+      font-weight: bold;
+      text-align: center;
+    }
+    .supplier-header {
+      background-color: #e2f0d9;
+      font-weight: bold;
+      text-align: center;
+    }
+    .sub-header {
+      background-color: #c6efce;
+      font-weight: bold;
+      text-align: center;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Contractor Connect Skill Evaluation Sheet</h1>
-        </div>
-        
-        <div class="candidate-info">
-            <div class="info-item">
-                <span class="info-label">Candidate Name:</span>
-                <span class="info-value">${candidateData.candidateName || 'N/A'}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Total Experience:</span>
-                <span class="info-value">${candidateData.totalExperience || 'N/A'}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">JD Clarification Provided:</span>
-                <span class="info-value">${candidateData.jdClarificationProvided || 'N/A'}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Relevant Experience:</span>
-                <span class="info-value">${candidateData.relevantExperience || 'N/A'}</span>
-            </div>
-            <div class="info-item" style="grid-column: 1 / -1;">
-                <span class="info-label">Notice Period:</span>
-                <span class="info-value">${candidateData.noticePeriod || 'N/A'}</span>
-            </div>
-        </div>
+  <div class="container">
+    <table>
+      <!-- Main header -->
+      <tr>
+        <td colspan="5" class="main-header">
+          Contractor Connect Skill Evaluation Sheet
+        </td>
+      </tr>
+      
+      <!-- Candidate info -->
+      <tr>
+        <td class="section-label">Candidate Name:</td>
+        <td colspan="4">${candidateData.candidateName || 'N/A'}</td>
+      </tr>
+      <tr>
+        <td class="section-label">Total Experience:</td>
+        <td colspan="4">${candidateData.totalExperience || 'N/A'}</td>
+      </tr>
+      <tr>
+        <td class="section-label">JD Clarification Provided to Candidate</td>
+        <td colspan="4">${candidateData.jdClarificationProvided || 'N/A'}</td>
+      </tr>
+      <tr>
+        <td class="section-label">Relevant Experience:</td>
+        <td colspan="4">${candidateData.relevantExperience || 'N/A'}</td>
+      </tr>
+      <tr>
+        <td class="section-label">Notice Period:</td>
+        <td colspan="4">${candidateData.noticePeriod || 'N/A'}</td>
+      </tr>
 
-        <div class="skills-section">
-            <div class="skills-header">
-                MSP INPUT - Supplier Inputs
-            </div>
-            
-            <table class="skills-table">
-                <thead>
-                    <tr>
-                        <th style="width: 25%;">Candidate Skills</th>
-                        <th style="width: 15%;">Mandatory/Optional</th>
-                        <th style="width: 25%;">Name of Projects in which the skills were used</th>
-                        <th style="width: 15%;">No. of years worked in each Project</th>
-                        <th style="width: 20%;">Description of work done using the skill</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${candidateData.skills ? candidateData.skills.map(skill => `
-                    <tr>
-                        <td class="skill-name">${skill.skillName || 'N/A'}</td>
-                        <td style="text-align: center;">
-                            <span class="${skill.mandatory === 'Mandatory' ? 'mandatory' : 'optional'}">
-                                ${skill.mandatory || 'N/A'}
-                            </span>
-                        </td>
-                        <td class="projects-cell">
-                            ${skill.projects !== 'Not Available' ? skill.projects || 'N/A' : '<span class="not-available">Not Available</span>'}
-                        </td>
-                        <td class="years-cell">
-                            ${skill.yearsWorked !== 'Not Available' ? skill.yearsWorked || 'N/A' : '<span class="not-available">Not Available</span>'}
-                        </td>
-                        <td class="description-cell">
-                            ${skill.description !== 'Not Available' ? skill.description || 'N/A' : '<span class="not-available">Not Available</span>'}
-                        </td>
-                    </tr>
-                    `).join('') : '<tr><td colspan="5" style="text-align: center; color: #7f8c8d;">No skills data available</td></tr>'}
-                </tbody>
-            </table>
-        </div>
-    </div>
+      <!-- Skills table header -->
+      <tr>
+        <td colspan="2" class="msp-header">MSP INPUT</td>
+        <td colspan="3" class="supplier-header">Supplier Inputs</td>
+      </tr>
+      <tr>
+        <td class="sub-header">Candidate Skills</td>
+        <td class="sub-header">Mandatory/Optional</td>
+        <td class="sub-header">Name of Projects in which the skills were used</td>
+        <td class="sub-header">No. of years worked in each Project</td>
+        <td class="sub-header">Description of work done using the skill</td>
+      </tr>
+
+      <!-- Skills rows -->
+      ${
+        candidateData.skills && candidateData.skills.length > 0
+          ? candidateData.skills.map(skill => `
+            <tr>
+              <td>${skill.skillName || 'N/A'}</td>
+              <td>${skill.mandatory || 'N/A'}</td>
+              <td>${skill.projects || 'N/A'}</td>
+              <td>${skill.yearsWorked || 'N/A'}</td>
+              <td>${skill.description || 'N/A'}</td>
+            </tr>
+          `).join('')
+          : `<tr><td colspan="5" style="text-align:center; color:#777;">No skills data available</td></tr>`
+      }
+    </table>
+  </div>
 </body>
 </html>`;
   
   return html;
 }
+
 
 // Function to generate and save HTML file
 async function generateSkillEvaluationReport(candidatesData, outputDir = "generated") {
