@@ -137,3 +137,11 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+
+# ignore the upload folder
+/uploads
+
+
+# ignore the generate folder
+/generated
