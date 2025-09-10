@@ -48,7 +48,7 @@ async function extractDocText(filePath) {
 // Generic function to extract text based on file extension
 async function extractTextFromFile(filePath, originalName) {
   const extension = path.extname(originalName).toLowerCase();
-  
+
   switch (extension) {
     case ".pdf":
       return await extractPdfText(filePath);
@@ -77,7 +77,7 @@ async function uploadDocs(req) {
 
   try {
     // Upload job description to S3
-    const jdKey = generateS3Key(jobDescriptionFile.originalname, "job-descriptions","jobDescriptions");
+    const jdKey = generateS3Key(jobDescriptionFile.originalname, "job-descriptions", "jobDescriptions");
     const jdUrl = await uploadFileToS3(jobDescriptionFile.path, jdKey);
     uploadedFiles.jobDescription = {
       originalName: jobDescriptionFile.originalname,
@@ -106,29 +106,43 @@ async function uploadDocs(req) {
       jobDescriptionFile.originalname
     );
 
-    const resumeContents = [];
-    
+    // Now process each resume separately (per-resume AI call + report)
+    const reportResults  = [];
+
     for (let file of resumeFiles) {
       const resumeText = await extractTextFromFile(file.path, file.originalname);
-      resumeContents.push({
-        filename: file.originalname,
-        content: resumeText,
-      });
+
+      try {
+        // One AI request per resume
+        const summary = await createSummary(jobDescriptionText, [
+          { filename: file.originalname, content: resumeText }
+        ]);
+
+        // AI may return a single object or array → normalize
+        const candidateData = Array.isArray(summary) ? summary[0] : summary;
+
+        // Generate reports (HTML, PDF, DOCX) for this candidate
+        const reportResult = await generateSkillEvaluationReport(candidateData, "generated");
+
+        reportResults.push({
+          candidateName: candidateData.candidateName || file.originalname,
+          s3Files: reportResult.files[0].s3Files, // only 1 candidate here
+          success: true,
+        });
+      } catch (err) {
+        console.error(`Error processing resume ${file.originalname}:`, err);
+        reportResults.push({
+          candidateName: file.originalname,
+          error: err.message,
+          success: false,
+        });
+      }
     }
 
-    // Generate summary and reports
-    const summary = await createSummary(jobDescriptionText, resumeContents);
-    console.log("summary", summary);
-
-    const reportResult = await generateSkillEvaluationReport(summary, 'generated');
-    console.log("HTML Generation Result:", reportResult);
-
-
     return {
-      reports: reportResult.files.map(f => ({
-        candidateName: f.candidateName,
-        s3Files: f.s3Files, // { html, pdf, docx }
-      })),
+      success: true,
+      message: `Processed ${reportResults.length} resumes with per-resume requests`,
+      reports: reportResults,
     };
   } catch (error) {
     // Clean up files even if there's an error
@@ -144,7 +158,7 @@ async function uploadDocs(req) {
     } catch (cleanupError) {
       console.error("Error cleaning up files:", cleanupError);
     }
-    
+
     throw error;
   }
 }
