@@ -2,8 +2,10 @@ const fs = require("fs");
 const path = require("path");
 const puppeteer = require("puppeteer");
 const htmlDocx = require("html-docx-js");
+const { uploadFileToS3 } = require("../utils/s3");
+const { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType, TextRun, BorderStyle } = require("docx");
 
-
+// HTML template function
 function generateSkillEvaluationHTML(candidateData) {
   const html = `
 <!DOCTYPE html>
@@ -132,6 +134,274 @@ function generateSkillEvaluationHTML(candidateData) {
   return html;
 }
 
+// Function to generate DOCX using docx library (more reliable)
+function generateSkillEvaluationDOCX(candidateData) {
+  const tableRows = [];
+  
+  // Main header row
+  tableRows.push(
+    new TableRow({
+      children: [
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "Contractor Connect Skill Evaluation Sheet",
+                  bold: true,
+                  size: 36, // 18pt
+                })
+              ],
+              alignment: AlignmentType.CENTER,
+            })
+          ],
+          columnSpan: 5,
+          shading: {
+            fill: "92d050",
+          },
+        })
+      ]
+    })
+  );
+
+  // Candidate information rows
+  const candidateInfo = [
+    ["Candidate Name:", candidateData.candidateName || 'N/A'],
+    ["Total Experience:", candidateData.totalExperience || 'N/A'],
+    ["JD Clarification Provided to Candidate", candidateData.jdClarificationProvided || 'N/A'],
+    ["Relevant Experience:", candidateData.relevantExperience || 'N/A'],
+    ["Notice Period:", candidateData.noticePeriod || 'N/A']
+  ];
+
+  candidateInfo.forEach(([label, value]) => {
+    tableRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: label,
+                    bold: true,
+                  })
+                ]
+              })
+            ],
+            width: {
+              size: 25,
+              type: WidthType.PERCENTAGE,
+            },
+            shading: {
+              fill: "f9f9f9",
+            },
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: value,
+                  })
+                ]
+              })
+            ],
+            columnSpan: 4,
+          })
+        ]
+      })
+    );
+  });
+
+  // MSP and Supplier headers row
+  tableRows.push(
+    new TableRow({
+      children: [
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "MSP INPUT",
+                  bold: true,
+                })
+              ],
+              alignment: AlignmentType.CENTER,
+            })
+          ],
+          columnSpan: 2,
+          shading: {
+            fill: "e2f0d9",
+          },
+        }),
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "Supplier Inputs",
+                  bold: true,
+                })
+              ],
+              alignment: AlignmentType.CENTER,
+            })
+          ],
+          columnSpan: 3,
+          shading: {
+            fill: "e2f0d9",
+          },
+        })
+      ]
+    })
+  );
+
+  // Sub headers row
+  const subHeaders = [
+    "Candidate Skills",
+    "Mandatory/Optional", 
+    "Name of Projects in which the skills were used",
+    "No. of years worked in each Project",
+    "Description of work done using the skill"
+  ];
+
+  tableRows.push(
+    new TableRow({
+      children: subHeaders.map(header => 
+        new TableCell({
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: header,
+                  bold: true,
+                })
+              ],
+              alignment: AlignmentType.CENTER,
+            })
+          ],
+          shading: {
+            fill: "c6efce",
+          },
+        })
+      )
+    })
+  );
+
+  // Skills data rows
+  if (candidateData.skills && candidateData.skills.length > 0) {
+    candidateData.skills.forEach(skill => {
+      tableRows.push(
+        new TableRow({
+          children: [
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: skill.skillName || 'N/A',
+                    })
+                  ]
+                })
+              ]
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: skill.mandatory || 'N/A',
+                    })
+                  ]
+                })
+              ]
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: skill.projects || 'N/A',
+                    })
+                  ]
+                })
+              ]
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: skill.yearsWorked || 'N/A',
+                    })
+                  ]
+                })
+              ]
+            }),
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: skill.description || 'N/A',
+                    })
+                  ]
+                })
+              ]
+            })
+          ]
+        })
+      );
+    });
+  } else {
+    tableRows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: "No skills data available",
+                    color: "777777",
+                  })
+                ],
+                alignment: AlignmentType.CENTER,
+              })
+            ],
+            columnSpan: 5,
+          })
+        ]
+      })
+    );
+  }
+
+  const table = new Table({
+    rows: tableRows,
+    width: {
+      size: 100,
+      type: WidthType.PERCENTAGE,
+    },
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+    },
+  });
+
+  const doc = new Document({
+    sections: [
+      {
+        properties: {},
+        children: [table],
+      },
+    ],
+  });
+
+  return doc;
+}
 
 // Function to generate and save HTML file
 async function generateSkillEvaluationReport(candidatesData, outputDir = "generated") {
@@ -154,7 +424,7 @@ async function generateSkillEvaluationReport(candidatesData, outputDir = "genera
         : "Unknown";
 
       // Filenames
-      const baseFilename = `skill_evaluation_${candidateName}_${timestamp}`;
+      const baseFilename = `${candidateName}_skill_evaluation_${timestamp}`;
       const htmlFilePath = path.join(outputDir, `${baseFilename}.html`);
       const pdfFilePath = path.join(outputDir, `${baseFilename}.pdf`);
       const docxFilePath = path.join(outputDir, `${baseFilename}.docx`);
@@ -166,25 +436,42 @@ async function generateSkillEvaluationReport(candidatesData, outputDir = "genera
       const browser = await puppeteer.launch({ headless: "new" });
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: "networkidle0" });
-      await page.pdf({ path: pdfFilePath, format: "A4" });
+      await page.pdf({ path: pdfFilePath, format: "A4", printBackground: true, });
       await browser.close();
 
       // 3. Save DOCX (using html-docx-js)
-      const blob = htmlDocx.asBlob(html);
-      const arrayBuffer = await blob.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      fs.writeFileSync(docxFilePath, buffer);
+      // const blob = htmlDocx.asBlob(html);
+      // const arrayBuffer = await blob.arrayBuffer();
+      // const buffer = Buffer.from(arrayBuffer);
+      // fs.writeFileSync(docxFilePath, buffer);
+
+      // 3. Save DOCX (using the new method)
+      const docxDoc = generateSkillEvaluationDOCX(candidate);
+      const docxBuffer = await Packer.toBuffer(docxDoc);
+      fs.writeFileSync(docxFilePath, docxBuffer);
+
+      // Upload to S3
+      const htmlS3Url = await uploadFileToS3(htmlFilePath, `reports/${baseFilename}.html`);
+      const pdfS3Url = await uploadFileToS3(pdfFilePath, `reports/${baseFilename}.pdf`);
+      const docxS3Url = await uploadFileToS3(docxFilePath, `reports/${baseFilename}.docx`);
 
 
       results.push({
         candidateName: candidate.candidateName,
-        htmlFile: path.resolve(htmlFilePath),
-        pdfFile: path.resolve(pdfFilePath),
-        docxFile: path.resolve(docxFilePath),
+        localFiles: {
+          html: path.resolve(htmlFilePath),
+          pdf: path.resolve(pdfFilePath),
+          docx: path.resolve(docxFilePath),
+        },
+        s3Files: {
+          html: htmlS3Url,
+          pdf: pdfS3Url,
+          docx: docxS3Url,
+        },
         success: true,
       });
     }
-
+      
     return {
       success: true,
       message: `Generated ${results.length} reports (HTML, PDF, DOCX)`,
@@ -201,5 +488,6 @@ async function generateSkillEvaluationReport(candidatesData, outputDir = "genera
 }
 module.exports = {
   generateSkillEvaluationHTML,
-  generateSkillEvaluationReport
+  generateSkillEvaluationReport,
+  generateSkillEvaluationDOCX,
 };

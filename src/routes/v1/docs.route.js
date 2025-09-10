@@ -7,19 +7,38 @@ const fs = require('fs');
 const router = express.Router();
 
 const uploadsDir = path.join(__dirname, "../../../uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+const jdDir = path.join(uploadsDir, "jobDescriptions");
+const resumesDir = path.join(uploadsDir, "resumes");
+
+// Ensure directories exist
+[uploadsDir, jdDir, resumesDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
+
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, uploadsDir);
+    // Determine destination based on field name
+    if (file.fieldname === "jobDescription") {
+      cb(null, jdDir);
+    } else if (file.fieldname === "resumes") {
+      cb(null, resumesDir);
+    } else {
+      cb(null, uploadsDir); // fallback
+    }
   },
   filename: function (req, file, cb) {
-    // Generate unique filename with timestamp and original extension
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const fileExtension = path.extname(file.originalname);
-    cb(null, `${uniqueSuffix}${fileExtension}`);
+    // Use original filename in lowercase with timestamp prefix
+    const timestamp = Date.now();
+    const originalName = file.originalname.toLowerCase();
+    const fileExtension = path.extname(originalName);
+    const fileNameWithoutExt = path.basename(originalName, fileExtension);
+    
+    // Create filename with timestamp and original name in lowercase
+    const safeFileName = `${fileNameWithoutExt.replace(/[^a-z0-9]/g, '_')}_${timestamp}${fileExtension}`;
+    cb(null, safeFileName);
   },
 });
 
@@ -39,8 +58,8 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB per file
-    files: 4 // 1 job description + max 3 resumes
+    fileSize: 5 * 1024 * 1024, 
+    files: 4 
   }
 });
 

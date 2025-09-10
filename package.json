@@ -21,10 +21,12 @@
   },
   "homepage": "https://github.com/ALOIS-Lab/skillScribe-BE#readme",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.884.0",
     "@google/generative-ai": "^0.24.1",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "docx": "^9.5.1",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
