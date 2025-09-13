@@ -433,7 +433,7 @@ async function generateSkillEvaluationReport(candidatesData, outputDir = "genera
       fs.writeFileSync(htmlFilePath, html, "utf8");
 
       // 2. Save PDF (using puppeteer for accurate rendering)
-      const browser = await puppeteer.launch({ headless: "new" });
+      const browser = await puppeteer.launch({ headless: "new", args: ["--no-sandbox", "--disable-setuid-sandbox"], });
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: "networkidle0" });
       await page.pdf({ path: pdfFilePath, format: "A4", printBackground: true, });

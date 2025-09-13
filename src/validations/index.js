@@ -1,0 +1,1 @@
+module.exports.authValiddation = require("./auth.validation");

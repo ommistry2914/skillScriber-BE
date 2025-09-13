@@ -3,6 +3,7 @@ const app = require("./src/app");
 const connectDB = require("./src/config/db");
 const config = require("./src/config/config");
 const logger = require("./src/config/logger");
+const { initializeServer } = require("./src/utils/initializeServer");
 
 const server = http.Server(app);
 
@@ -27,6 +28,8 @@ const startServer = async () => {
   try {
     await connectDB();
     logger.info("Connected to MongoDB");
+
+    await initializeServer();
 
     app.listen(config.port, () => {
       logger.info(`Server running at http://localhost:${config.port}`);
